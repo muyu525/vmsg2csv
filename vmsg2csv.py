@@ -1,7 +1,7 @@
 # coding=utf8
 # -*- coding: utf8 -*-
 
-import os, sys
+import sys
 import csv
 import random
 
@@ -46,6 +46,13 @@ class VMSG:
     TVCARD = 'VCARD'
     TVBODY = 'VBODY'
 
+    X_BOX = 'X-BOX'
+    X_READ = 'X-READ'
+    X_SIMID = 'X-SIMID'
+    X_LOCKED = 'X-LOCKED'
+    X_TYPE = 'X-TYPE'
+
+    INBOX = 'INBOX'
     TDELIVER = 'DELIVER'
     TSUBMIT = 'SUBMIT'
 
@@ -95,11 +102,11 @@ def process_item(item_id, item):
 
 def process_start_tag(stream, stack, v):
     tag = stream[6:]
-    # print('process_start_tag:', tag)
+    #print('process_start_tag:', tag)
     if len(tag) == 0:
         raise ValueError
 
-    # print('pushing:', tag)
+    #print('pushing:', tag)
     stack.append(tag)
 
     if tag == VMSG.TVMSG:
@@ -109,7 +116,7 @@ def process_start_tag(stream, stack, v):
 
 def process_end_tag(stream, stack, v):
     tag = stream[4:]
-    # print('process_end_tag:', tag)
+    #print('process_end_tag:', tag)
     if len(tag) == 0:
         raise ValueError
 
@@ -117,15 +124,12 @@ def process_end_tag(stream, stack, v):
         raise ValueError
 
     stack.pop()
-    # print('poping:', stream)
+    #print('poping:', stream)
 
     if tag == VMSG.TVMSG:
         # decode content here
         item = v[-1]
-        b = bytearray.fromhex(item['content'])
-        s = b.decode(encoding='utf8')
-        item['content'] = s.encode(encoding='utf8')
-
+        item['content'] = decode_subject(item['content'])
 
 def process_attribute(stream, stack, v):
     if len(stack) > 0:
@@ -137,7 +141,17 @@ def process_attribute(stream, stack, v):
             if stream.startswith(VMSG.TTEL):
                 process_tel(stream, v)
         elif tag == VMSG.TVBODY:
-            if stream.startswith(VMSG.TDATE):
+            if stream.startswith(VMSG.X_BOX):
+                process_box(stream, v)
+            elif stream.startswith(VMSG.X_READ):
+                pass
+            elif stream.startswith(VMSG.X_SIMID):
+                pass
+            elif stream.startswith(VMSG.X_LOCKED):
+                pass
+            elif stream.startswith(VMSG.X_TYPE):
+                pass
+            elif stream.startswith(VMSG.TDATE):
                 process_date(stream, v)
             elif stream.startswith(VMSG.TSUBJECT):
                 process_subject(stream, v)
@@ -153,6 +167,17 @@ def process_message_type(stream, v):
         type = 'SENT'
     else:
         type = 'RECEIVED'
+
+    item = v[-1]
+    item['type'] = type
+
+def process_box(stream, v):
+    type = stream[6:]
+
+    if type == VMSG.INBOX:
+        type = 'RECEIVED'
+    else:
+        type = 'SENT'
 
     item = v[-1]
     item['type'] = type
@@ -181,20 +206,50 @@ def process_date(stream, v):
 
 
 def process_subject(stream, v):
-    s = stream.split(':')
-    s = s[-1]
-    content = s.replace('=', '')
+    s = stream.split(':', 1)
+    content = s[-1]
 
     item = v[-1]
     item['content'] = content
 
 
 def process_continue_subject(stream, v):
-    s = stream
-    content = s.replace('=', '')
+    content = stream
 
     item = v[-1]
     item['content'] = item['content'] + content
+
+def decode_subject(content):
+    #b = bytearray.fromhex(item['content'])
+    result = []
+    contents = content.split('=')
+    for c in contents:
+        print(c)
+        s = ''
+        if len(c) > 2:
+            c1 = c[:2]
+            c2 = c[2:]
+            try:
+                b = bytearray.fromhex(c1)
+                s = b.decode(encoding='utf8')
+            except:
+                s = c1.decode(encoding='utf8')
+            result.append(s)
+            result.append(c2.decode(encoding='utf8'))
+        elif len(c) == 2:
+            try:
+                b = bytearray.fromhex(c)
+                s = b.decode(encoding='utf8')
+            except:
+                s = c.decode(encoding='utf8')
+            result.append(s)
+        else:
+            s = c.decode(encoding='utf8')
+            result.append(s)
+
+    content = ''.join(result)
+    return content
+
 
 
 if '__main__' == __name__:
