@@ -224,7 +224,6 @@ def decode_subject(content):
     result = []
     contents = content.split('=')
     for c in contents:
-        print(c)
         s = ''
         if len(c) > 2:
             c1 = c[:2]
