@@ -1,9 +1,17 @@
+#!/usr/bin/env python3
 # coding=utf8
 # -*- coding: utf8 -*-
+"""
+A script to convert short message backup file in vmsg to csv.
+Originally developted by muyu525 (https://github.com/muyu525/vmsg2csv)
+Forked by zevanzhao on 2018.02.03
+"""
 
 import sys
+import quopri
 import csv
 import random
+import re
 
 # vmsg format
 
@@ -63,7 +71,6 @@ class VMSG:
     def __init__(self):
         pass
 
-
 def build_from_message(fvmsg, fcsv):
     with open(fvmsg, 'r') as f:
         v_l = [] # result
@@ -77,11 +84,12 @@ def build_from_message(fvmsg, fcsv):
             else:
                 process_attribute(line, stack, v_l)
 
-    with open(fcsv, 'wb') as fout:
+    with open(fcsv, 'w') as fout:
         writer = csv.writer(fout, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         item_id = 1
         for item in v_l:
             row = process_item(item_id, item)
+            #print("Writing row %s" %(row))
             writer.writerow(row)
             item_id += 1
 
@@ -221,35 +229,13 @@ def process_continue_subject(stream, v):
 
 def decode_subject(content):
     #b = bytearray.fromhex(item['content'])
-    result = []
-    contents = content.split('=')
-    for c in contents:
-        s = ''
-        if len(c) > 2:
-            c1 = c[:2]
-            c2 = c[2:]
-            try:
-                b = bytearray.fromhex(c1)
-                s = b.decode(encoding='utf8')
-            except:
-                s = c1.decode(encoding='utf8')
-            result.append(s)
-            result.append(c2.decode(encoding='utf8'))
-        elif len(c) == 2:
-            try:
-                b = bytearray.fromhex(c)
-                s = b.decode(encoding='utf8')
-            except:
-                s = c.decode(encoding='utf8')
-            result.append(s)
-        else:
-            s = c.decode(encoding='utf8')
-            result.append(s)
-
-    content = ''.join(result)
-    return content
-
-
+    #replace "==" by "="
+    content = re.sub("==", "=",content)
+    #print("Decoding contents: %s" %(content))
+    #quopri should be used here.
+    result = quopri.decodestring(content).decode("utf-8")
+    #print("Results: %s" %result)
+    return str(result)
 
 if '__main__' == __name__:
     fvmsg = sys.argv[1]
