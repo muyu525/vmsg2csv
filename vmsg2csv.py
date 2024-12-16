@@ -55,10 +55,23 @@ class VMSG:
     TVBODY = 'VBODY'
 
     X_BOX = 'X-BOX'
+    X_MSGBOX = 'X-MSGBOX'
+    X_CALLTYPE = 'X-CALLTYPE'
     X_READ = 'X-READ'
     X_SIMID = 'X-SIMID'
     X_LOCKED = 'X-LOCKED'
     X_TYPE = 'X-TYPE'
+    X_TYPEEX = 'X-TYPEEX'
+    X_KPAS_MSGID = 'X-KPAS_MSGID'
+    X_KPAS_SERIAL_NUM = 'X-KPAS_SERIAL_NUM'
+    X_SPAM_REPORT = 'X-SPAM_REPORT'
+    X_RESERVE_TIME = 'X-RESERVE_TIME'
+    X_GROUP_ID = 'X-GROUP_ID'
+    X_INSERT_TIME = 'X-INSERT_TIME'
+    X_ORIGINAL_ADDR = 'X-ORIGINAL_ADDR'
+    X_EXTRA_DATA = 'X-EXTRA_DATA'
+    X_SEEN = 'X-SEEN'
+    X_VERIFIED = 'X-VERIFIED'
 
     INBOX = 'INBOX'
     TDELIVER = 'DELIVER'
@@ -137,7 +150,11 @@ def process_end_tag(stream, stack, v):
     if tag == VMSG.TVMSG:
         # decode content here
         item = v[-1]
-        item['content'] = decode_subject(item['content'])
+        if item.get('content'):
+            item['content'] = decode_subject(item['content'])
+        else:
+            print('Error: Subject not found')
+            sys.exit(1)
 
 def process_attribute(stream, stack, v):
     if len(stack) > 0:
@@ -164,8 +181,11 @@ def process_attribute(stream, stack, v):
             elif stream.startswith(VMSG.TSUBJECT):
                 process_subject(stream, v)
             else:
-                # continue subject
-                process_continue_subject(stream, v)
+                i = stream.find(':')
+                if i == -1: # not a tag, continue subject
+                    process_continue_subject(stream, v)
+                else: # unkown tag
+                    pass
 
 
 def process_message_type(stream, v):
@@ -222,10 +242,11 @@ def process_subject(stream, v):
 
 
 def process_continue_subject(stream, v):
-    content = stream
-
     item = v[-1]
-    item['content'] = item['content'] + content
+    if item.get('content'):
+        content = stream
+
+        item['content'] = item['content'] + content
 
 def decode_subject(content):
     #b = bytearray.fromhex(item['content'])
